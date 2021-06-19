@@ -1,0 +1,399 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+import pandas as pd
+import json
+import urllib
+import requests as rq
+import base64
+
+
+API_KEY = 'n2veujxx1unwclq8ihfw2hvv0yry8mfc'
+SECRET = 'st24GlD3H0x1'
+
+
+message = API_KEY + ":" + SECRET
+auth = "Basic " + base64.b64encode(message.encode("ascii")).decode("ascii")
+
+headers_dic = {"Authorization" : auth,"Content-Type" : "application/x-www-form-urlencoded;charset=UTF-8"}
+params_dic = {"grant_type" : "client_credentials","scope" : "read"}
+
+
+
+def get_oauth_token(): 
+
+    url = "https://api.idealista.com/oauth/token"    
+
+    apikey= API_KEY #sent by idealist
+    secret= SECRET #sent by idealista
+    apikey_secret = apikey + ':' + secret
+    auth = str(base64.b64encode(bytes(apikey_secret, 'utf-8')))[2:][:-1]
+
+    headers = {'Authorization' : 'Basic ' + auth,'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'}
+    params = urllib.parse.urlencode({'grant_type':'client_credentials'}) #,'scope':'read'
+    content = rq.post(url,headers = headers, params=params)
+    bearer_token = json.loads(content.text)['access_token']
+
+    return bearer_token
+
+def search_api(token, URL):  
+    headers = {'Content-Type': 'Content-Type: multipart/form-data;', 'Authorization' : 'Bearer ' + token}
+    content = rq.post(url, headers = headers)
+    result = json.loads(content.text)
+    
+    return result
+    
+token=get_oauth_token()
+
+
+
+#%%  DISTRITO CENTRO
+
+# Valores específicos del distrito
+center = '40.4114230624815,-3.7083861318578264'
+distance = '1290'
+
+
+# Filtros generales
+country = 'es' #values: es, it, pt
+locale = 'es' #values: es, it, pt, en, ca
+language = 'es' #
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 13
+
+for i in range(1,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+df_centro = df_tot
+
+
+
+#%%  DISTRITO ARGANZUELA
+
+
+# Valores específicos del distrito
+center = '40.402733,-3.695403'
+distance = '1434'
+
+
+# Filtros generales
+country = 'es' 
+locale = 'es'
+language = 'es' 
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 15
+
+for i in range(1,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+df_arg = df_tot
+
+
+
+#%%  DISTRITO RETIRO
+
+
+# Valores específicos del distrito
+center = '40.411627089274305,-3.674380973998261'
+distance = '1318'
+
+
+# Filtros generales
+country = 'es' 
+locale = 'es'
+language = 'es' 
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 13
+
+for i in range(1,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+df_retiro = df_tot
+
+
+
+#%%  DISTRITO SALAMANCA
+
+
+# Valores específicos del distrito
+center = '40.430000,-3.677778'
+distance = '1310'
+
+
+# Filtros generales
+country = 'es' 
+locale = 'es'
+language = 'es' 
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 13
+
+for i in range(1,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+df_salamanca = df_tot
+
+
+
+#%%  DISTRITO CHAMARTIN
+
+
+# Valores específicos del distrito
+center = '40.453333,-3.677500'
+distance = '1709'
+
+
+# Filtros generales
+country = 'es' 
+locale = 'es'
+language = 'es' 
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 22
+
+for i in range(1,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+df_chamartin = df_tot
+
+
+#%%  DISTRITO TETUAN
+
+
+# Valores específicos del distrito
+center = '40.460556,-3.700000'
+distance = '1407'
+
+
+# Filtros generales
+country = 'es' 
+locale = 'es'
+language = 'es' 
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 14
+
+for i in range(13,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+# df_tetuan = df_tot
+
+
+#%%  DISTRITO CHAMBERI
+
+
+# Valores específicos del distrito
+center = '40.43879513238338,-3.7042554401928647'
+distance = '1307'
+
+
+# Filtros generales
+country = 'es' 
+locale = 'es'
+language = 'es' 
+max_items = '50'
+operation = 'sale' 
+property_type = 'homes'
+# order = 'priceDown'
+order = 'publicationDate' 
+sort = 'desc'
+bankOffer = 'false'
+bedrooms = '1,2,3'
+maxPrice = '1000000'
+
+
+df_tot = pd.DataFrame()
+limit = 11
+
+for i in range(9,limit):
+    url = ('https://api.idealista.com/3.5/'+country+'/search?operation='+operation+#"&locale="+locale+
+           '&maxItems='+max_items+
+           # '&order='+order+
+           '&center='+center+
+           '&distance='+distance+
+           '&propertyType='+property_type+
+           '&bedrooms='+bedrooms+
+           '&maxPrice='+maxPrice+
+           '&sort='+sort+ 
+           '&numPage=%s'+
+           '&language='+language) %(i)
+    
+    a = search_api(token, url)
+    df = pd.DataFrame.from_dict(a['elementList'])
+    df_tot = pd.concat([df_tot,df])
+    
+# df_chamberi = df_tot
+
+#%% LIMPIEZA DE COLUMNAS
+
+df_final = pd.concat([df_arg, df_centro, df_chamartin, df_chamberi, df_retiro, df_salamanca, df_tetuan])
+
+df_test = df_final
+df_test = pd.concat([df_final['detailedType'].apply(pd.Series), df_final], axis = 1)
+df_test = pd.concat([df_test['parkingSpace'].apply(pd.Series), df_test], axis = 1)
+
+df_test = df_test.drop([0],axis=1)
+
+df_limpio = df_test.drop([#0, 
+                          'propertyCode', 
+                          'thumbnail',
+                          'externalReference',
+                          'address',
+                          'country'],axis=1)
+
+#%% DESCARGAR BDD
+
+df_final.to_csv (r'/Users/davicillo/Desktop/InvestMat/Segundo Semestre/REDES/Listings_Raw.csv', index = False, header=True)
+df_limpio.to_csv (r'/Users/davicillo/Desktop/InvestMat/Segundo Semestre/REDES/Listings_Clean.csv', index = False, header=True)
+
+
+
+ 
