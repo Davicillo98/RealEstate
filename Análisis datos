@@ -1,0 +1,404 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jun  5 19:49:39 2021
+
+@author: davicillo
+"""
+
+#%% IMPORTAR DEPENDENCIAS
+
+import pandas as pd
+import seaborn as sns
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+from scipy.stats import skew
+from scipy import stats
+from scipy.stats import norm
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_percentage_error
+from sklearn.metrics import median_absolute_error
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import r2_score
+import xgboost as xgb
+from sklearn.inspection import permutation_importance
+from sklearn.neural_network import MLPRegressor
+from scipy.special import boxcox1p
+from sklearn.preprocessing import LabelEncoder
+
+
+
+
+#%% 0. CARGAR DATOS
+
+df = pd.read_csv(r'/Users/davicillo/Desktop/InvestMat/Segundo Semestre/REDES/Listings_Clean.csv')
+columns = df.columns.tolist()
+df = df.drop(['detailedType',
+              'suggestedTexts', 
+              'parkingSpace', 
+              'url',
+              'has3DTour',
+              'has360',
+              'showAddress',
+              'latitude',
+              'longitude',
+              'municipality',
+              'operation',
+              'province',
+              'priceByArea'], axis=1)
+
+
+
+
+#%% 1. ANÁLISIS DE LA VARIABLE DEPENDIENTE
+
+df['price'].describe()
+
+# Plot Histogram
+sns.displot(df['price'], kind="kde")
+xmin, xmax = plt.xlim()
+
+# Get the fitted parameters used by the function
+(mu, sigma) = norm.fit(df['price'])
+print( '\n mu = {:.2f} and sigma = {:.2f}\n'.format(mu, sigma))
+
+# Plot the PDF.
+x = np.linspace(xmin, xmax, 100)
+p = norm.pdf(x, mu, sigma)
+plt.plot(x, p, 'k', linewidth=2)
+
+plt.legend(['Normal dist. ($\mu=$ {:.2f} and $\sigma=$ {:.2f} )'.format(mu, sigma)],
+            bbox_to_anchor=(0.5, -0.2),
+            loc='lower center')
+plt.ylabel('Frequency')
+plt.title('Price distribution')
+
+fig = plt.figure()
+res = stats.probplot(df['price'], plot=plt)
+plt.show()
+
+print("Skewness: %f" % df['price'].skew())
+print("Kurtosis: %f" % df['price'].kurt())
+
+
+
+
+#%% 2. ANÁLISIS DEL RESTO DE VARIABLES
+
+# Checking Categorical Data
+df.select_dtypes(include=['object']).columns
+
+# Checking Numerical Data
+df.select_dtypes(include=['int64','float64']).columns
+
+# Checking Boolean Data
+df.select_dtypes(include=['bool']).columns
+
+cat = len(df.select_dtypes(include=['object']).columns)
+num = len(df.select_dtypes(include=['int64','float64']).columns)
+boo = len(df.select_dtypes(include=['bool']).columns)
+
+print('Total Features: ', 
+      cat, 'categorical', '+',
+      num, 'numerical','+',
+      boo, 'boolean', '=', 
+      cat+num+boo, 'features')
+
+
+# Top 10 features correlated with price
+corrmat = df.corr()
+k = 10
+cols = corrmat.nlargest(k, 'price')['price'].index.to_list()
+cols.pop(3)
+cm = np.corrcoef(df[cols].T.astype(float))
+sns.set(font_scale=1.25)
+hm = sns.heatmap(cm,
+                 cbar=False,
+                 annot=True,
+                 square=True,
+                 fmt='.2f', 
+                 annot_kws={'size': 10}, 
+                 yticklabels=cols,
+                 xticklabels=cols)
+plt.show()
+
+most_corr = pd.DataFrame(cols)
+most_corr.columns = ['Most Correlated Features']
+most_corr
+
+# Overall Quality vs Sale Price
+var = 'status'
+data = pd.concat([df['price'], df[var]], axis=1)
+f, ax = plt.subplots(figsize=(8, 6))
+fig = sns.boxplot(x=var, y="price", data=data)
+fig.axis(ymin=0, ymax=1100000);
+
+
+# Living Area vs Sale Price
+sns.jointplot(x=df['size'], y=df['price'], kind='reg')
+
+
+# ParkingSpacePrice vs Sale Price
+sns.jointplot(x=df['parkingSpacePrice'], y=df['price'], kind='reg')
+
+
+# Bathrooms vs Sale Price
+sns.boxplot(x=df['bathrooms'], y=df['price'])
+
+
+# rooms vs Sale Price
+sns.boxplot(x=df['rooms'], y=df['price'])
+
+
+# Exterior vs Sale Price
+sns.boxplot(x=df['exterior'], y=df['price'])
+
+
+# Floor vs Sale Price
+sns.boxplot(x=df['floor'], y=df['price'])
+
+
+
+
+#%% 3. RELLENAR VALORES EN BLANCO Y LIMPIEZA
+
+df_na = (df.isnull().sum() / len(df)) * 100
+df_na = df_na.drop(df_na[df_na == 0].index).sort_values(ascending=False)[:30]
+missing_data = pd.DataFrame({'Missing Ratio' : df_na})
+missing_data
+
+df["parkingSpacePrice"] = df["parkingSpacePrice"].fillna("None")
+df["subTypology"] = df["subTypology"].fillna("NA")
+df["newDevelopmentFinished"] = df["newDevelopmentFinished"].fillna("NA")
+df["isParkingSpaceIncludedInPrice"] = df["isParkingSpaceIncludedInPrice"].fillna("False")
+df["hasParkingSpace"] = df["hasParkingSpace"].fillna("False")
+df["hasLift"] = df["hasLift"].fillna("False")
+df["floor"] = df["floor"].fillna("bj")
+df["floor"].replace({"BJ": "bj", "ss": "st"}, inplace=True)
+df["floor"].replace({"st": "-1"}, inplace=True)
+df["floor"].replace({"en": "0"}, inplace=True)
+df["floor"].replace({"bj": "0"}, inplace=True)
+
+
+
+
+#%% 4. TRANSFORMACIÓN DE VALORES
+
+
+# Fixing skewed features
+df["price"] = np.log1p(df["price"])
+
+
+# Check the new distribution 
+sns.displot(df['price'], kind="kde")
+xmin, xmax = plt.xlim()
+
+
+# Get the fitted parameters used by the function
+(mu, sigma) = norm.fit(df['price'])
+print( '\n mu = {:.2f} and sigma = {:.2f}\n'.format(mu, sigma))
+
+
+# Plot the PDF.
+x = np.linspace(xmin, xmax, 100)
+p = norm.pdf(x, mu, sigma)
+plt.plot(x, p, 'k', linewidth=2)
+
+plt.legend(['Normal dist. ($\mu=$ {:.2f} and $\sigma=$ {:.2f} )'.format(mu, sigma)],
+            bbox_to_anchor=(0.5, -0.3),
+            loc='lower center')
+plt.ylabel('Frequency')
+plt.title('Price distribution')
+
+fig = plt.figure()
+res = stats.probplot(df['price'], plot=plt)
+plt.show()
+
+print("Skewness: %f" % df['price'].skew())
+print("Kurtosis: %f" % df['price'].kurt())
+
+
+# Check all numerical skewed features
+numeric_feats = df.dtypes[(df.dtypes == "int64")|(df.dtypes == "float64")].index
+skewed_feats = df[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
+skewness = pd.DataFrame({'Skewed Features' :skewed_feats})
+skewness.head()
+
+skewness = skewness[abs(skewness) > 0.75].dropna()
+print("There are {} skewed numerical features to Box Cox transform".format(skewness.shape[0]))
+
+
+skewed_features = skewness.index
+lam = 0.15
+for feat in skewed_features:
+    df[feat] = boxcox1p(df[feat], lam)
+    df[feat] += 1
+
+
+# Process columns and apply LabelEncoder to categorical features
+objList = df.select_dtypes(include = ["object", "bool"]).columns
+le = LabelEncoder()
+
+for feat in objList:
+    df[feat] = le.fit_transform(df[feat].astype(str))
+
+
+
+
+#%% 5. PREDICCIONES Y MODELADO
+
+X = df.drop(['price'], axis=1)
+y = df['price']
+
+X_train, X_test, y_train, y_test = train_test_split(X, 
+                                                    y, 
+                                                    test_size=0.2, 
+                                                    random_state=123)
+
+# XGB
+model_xgb = xgb.XGBRegressor(colsample_bytree=0.2, 
+                             gamma=0.01, 
+                             learning_rate=0.05, 
+                             max_depth=4, 
+                             min_child_weight=1.5, 
+                             n_estimators=7200,
+                             reg_alpha=0.9, 
+                             reg_lambda=0.6,
+                             subsample=0.2,
+                             seed=42, 
+                             random_state =7).fit(X_train, y_train)
+
+y_pred = model_xgb.predict(X_test)
+y_true = model_xgb.predict(X_train)
+r2_score(y_test, y_pred)
+r2_score(y_train, y_true)
+y_test_inv=np.expm1(y_test)
+y_pred_inv=np.expm1(y_pred)
+mse = mean_squared_error(y_test_inv, y_pred_inv)
+mean_absolute_percentage_error(y_test_inv, y_pred_inv)
+median_absolute_error(y_test_inv, y_pred_inv)
+
+
+# MLP
+model_mlp = MLPRegressor(hidden_layer_sizes = (50,50,50),
+                         activation = 'tanh',
+                         alpha = 0.0001,
+                         solver = 'adam',
+                         learning_rate = 'constant',
+                         random_state = 1, 
+                         max_iter = 500).fit(X_train, y_train)
+
+
+y_pred = model_mlp.predict(X_test)
+r2_score(y_test, y_pred)
+
+y_test_inv = np.expm1(y_test)
+y_pred_inv = np.expm1(y_pred)
+
+mean_squared_error(y_test, y_pred)
+mean_absolute_percentage_error(y_test_inv, y_pred_inv)
+mean_absolute_error(y_test_inv, y_pred_inv)
+
+
+
+
+#%% 6. ANÁLISIS RESULTADOS
+
+# Permutation importance
+matplotlib.rc_file_defaults()
+result = permutation_importance(model_mlp, 
+                                X_test, 
+                                y_test, 
+                                n_repeats=20,
+                                random_state=42, 
+                                n_jobs=2)
+
+sorted_idx = result.importances_mean.argsort()
+
+fig, ax = plt.subplots()
+ax.boxplot(result.importances[sorted_idx].T,
+            vert=False, 
+            labels=X_test.columns[sorted_idx])
+
+fig.tight_layout()
+plt.show()
+
+
+# SHAP feature importances
+import shap
+explainer = shap.DeepExplainer(model_mlp, X)
+
+shap_values = shap.TreeExplainer(model_mlp).shap_values(X)
+shap.summary_plot(shap_values, X)
+shap.dependence_plot("district",shap_values, X, interaction_index = "size")
+shap.dependence_plot("district",shap_values, X, interaction_index = "status")
+shap.dependence_plot("size",shap_values, X, interaction_index = "status")
+shap.dependence_plot("neighborhood", shap_values, X)
+
+# Interaction Plots
+shap_interaction_values = shap.TreeExplainer(model_xgb).shap_interaction_values(X)
+shap.summary_plot(shap_interaction_values, X)
+
+# Force Plots
+explainer = shap.TreeExplainer(model_xgb)
+shap_values = explainer.shap_values(X_test)
+
+shap.initjs()
+shap.force_plot(explainer.expected_value, shap_values[3], X_test.iloc[3,:], matplotlib=True)
+
+# Waterfall plot
+shap.plots.waterfall(shap_values[1])
+
+
+
+
+#%% 7. TUNEADO DE HIPERPARÁMETROS MLP
+
+model_mlp = MLPRegressor(random_state=1, max_iter=500)
+
+parameter_space = {
+    'hidden_layer_sizes': [(50,50,50), (50,100,50), (100,)],
+    'activation': ['tanh', 'relu'],
+    'solver': ['sgd', 'adam'],
+    'alpha': [0.0001, 0.05],
+    'learning_rate': ['constant','adaptive'],
+}
+
+from sklearn.model_selection import GridSearchCV
+
+clf = GridSearchCV(model_mlp, parameter_space, n_jobs=-1, cv=5)
+clf.fit(X_train, y_train)
+
+# Best paramete set
+print('Best parameters found:\n', clf.best_params_)
+
+# All results
+means = clf.cv_results_['mean_test_score']
+stds = clf.cv_results_['std_test_score']
+for mean, std, params in zip(means, stds, clf.cv_results_['params']):
+    print("%0.3f (+/-%0.03f) for %r" % (mean, std * 2, params))
+
+
+from sklearn_evaluation.plot import grid_search
+
+grid_search(clf.cv_results_, 
+                 change='hidden_layer_sizes', 
+                 subset={'activation': ['tanh'],
+                         'solver': ['sgd', 'adam']},
+                 kind='bar')
+
+grid_search(clf.cv_results_, 
+                 change=('hidden_layer_sizes','activation'), 
+                 subset={'solver': 'adam',
+                         'alpha': 0.0001,
+                         'learning_rate': 'constant'})
+plt.colorbar(False)
+plt.show()
+
+fig, ax = plt.subplots(1, 1)
+ax.plot(model_mlp.loss_curve_)
+
+
+
