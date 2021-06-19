@@ -9,8 +9,8 @@ import requests as rq
 import base64
 
 
-API_KEY = 'n2veujxx1unwclq8ihfw2hvv0yry8mfc'
-SECRET = 'st24GlD3H0x1'
+API_KEY = 'YOUR API_KEY'
+SECRET = 'YOUR SECRET'
 
 
 message = API_KEY + ":" + SECRET
@@ -388,11 +388,6 @@ df_limpio = df_test.drop([#0,
                           'externalReference',
                           'address',
                           'country'],axis=1)
-
-#%% DESCARGAR BDD
-
-df_final.to_csv (r'/Users/davicillo/Desktop/InvestMat/Segundo Semestre/REDES/Listings_Raw.csv', index = False, header=True)
-df_limpio.to_csv (r'/Users/davicillo/Desktop/InvestMat/Segundo Semestre/REDES/Listings_Clean.csv', index = False, header=True)
 
 
 
